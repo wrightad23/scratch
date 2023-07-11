@@ -1,0 +1,95 @@
+#https://aws.amazon.com/blogs/aws/aws-web-application-firewall-waf-for-application-load-balancers/
+#create waf!
+#webacl, in the same region, associated with the ALB
+##name, add cloudwatch metric
+#webacl association?: fn::getatt arn
+#ALB ARN: arn:aws:elasticloadbalancing:us-east-2:802429766603:loadbalancer/app/bluestreak-cloud-prd-aelb/e89fa1277a5fcf47
+#ALB ID: bluestreak-cloud-prd-aelb
+#VPC ID: vpc-c9bba0a1
+
+AWSTemplateFormatVersion: "2010-09-09"
+
+#Mappings: Availability Zones, ALB, VPC
+Mappings:
+  VpcId: "vpc-c9bba0a1"
+
+  ALB:
+    AlbArn: "arn:aws:elasticloadbalancing:us-east-2:802429766603:loadbalancer/app/bluestreak-cloud-prd-aelb/e89fa1277a5fcf47"
+    AlbId: "bluestreak-cloud-prd-aelb"
+
+  AZRegions:
+    us-east-2:
+      AZs: ["a", "b"]
+
+Resources:
+  
+  #WebACL
+  WebAcl:
+    Type: AWS::WAFv2::WebACL
+    Properties: 
+      DefaultAction: 
+        Allow: {}
+      Description: "WAF routing to BlueStreak Production ALB"
+      Name: "bluestreak-waf-acl-0"
+      Rules: 
+        - Name: AWSManagedRulesCommonRules
+          Priority: 0
+          OverrideAction:
+            Count: {}
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: AWSManagedRulesCommonRulesMetric
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesCommonRuleSet
+              ExcludedRules: []
+        - Name: AWSManagedRulesWindowsRules
+          Priority: 1
+          OverrideAction:
+            Count: {}
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: AWSManagedRulesWindowsRulesMetric
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesWindowsRuleSet
+              ExcludedRules: []
+        - Name: AWSManagedRulesSQLRules
+          Priority: 2
+          OverrideAction:
+            Count: {}
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: AWSManagedRulesSQLRulesMetric
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesSQLiRuleSet
+              ExcludedRules: []
+      Scope: "REGIONAL"
+      VisibilityConfig:
+        SampledRequestsEnabled: true
+        CloudWatchMetricsEnabled: true
+        MetricName: BlueStreakWebACL
+      Tags: 
+        -
+          Key: "Name"
+          Value: "bluestreak-waf-acl-0"
+        -
+          Key: "Build"
+          Value: "Created using CloudFormation"
+  
+  #Associating ACL with ALB
+  WebAclAssociation:
+    Type: AWS::WAFv2::WebACLAssociation
+    Properties: 
+      ResourceArn:
+        Fn::FindInMap:
+          - "ALB"
+          - "AlbArn"
+      WebACLArn: !GetAtt WebAcl.Arn
