@@ -1,21 +1,17 @@
-#https://aws.amazon.com/blogs/aws/aws-web-application-firewall-waf-for-application-load-balancers/
-#create waf!
-#webacl, in the same region, associated with the ALB
-##name, add cloudwatch metric
-#webacl association?: fn::getatt arn
-#ALB ARN: arn:aws:elasticloadbalancing:us-east-2:802429766603:loadbalancer/app/bluestreak-cloud-prd-aelb/e89fa1277a5fcf47
-#ALB ID: bluestreak-cloud-prd-aelb
-#VPC ID: vpc-c9bba0a1
+#This template builds an AWS WAF Web ACL using AWS Managed rule groups - the common core rule group, Windows rule group, and SQL rule group
+#The mappings point the WAF to the production application load balancer
+#The Cloudformation Stack will need to be built in the us-east-2 region
+#See the URL below for helpful documentation on building out more templates for Web ACLs
+#https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-wafv2-webacl.html
 
 AWSTemplateFormatVersion: "2010-09-09"
 
 #Mappings: Availability Zones, ALB, VPC
 Mappings:
-  VpcId: "vpc-c9bba0a1"
-
-  ALB:
-    AlbArn: "arn:aws:elasticloadbalancing:us-east-2:802429766603:loadbalancer/app/bluestreak-cloud-prd-aelb/e89fa1277a5fcf47"
-    AlbId: "bluestreak-cloud-prd-aelb"
+  LoadBalancing:
+    ALB:
+      AlbArn: "arn:aws:elasticloadbalancing:us-east-2:802429766603:loadbalancer/app/bluestreak-cloud-prd-aelb/e89fa1277a5fcf47"
+      AlbId: "bluestreak-cloud-prd-aelb"
 
   AZRegions:
     us-east-2:
@@ -31,46 +27,46 @@ Resources:
         Allow: {}
       Description: "WAF routing to BlueStreak Production ALB"
       Name: "bluestreak-waf-acl-0"
-      Rules: 
-        - Name: AWSManagedRulesCommonRules
-          Priority: 0
-          OverrideAction:
-            Count: {}
-          VisibilityConfig:
-            SampledRequestsEnabled: true
-            CloudWatchMetricsEnabled: true
-            MetricName: AWSManagedRulesCommonRulesMetric
-          Statement:
-            ManagedRuleGroupStatement:
-              VendorName: AWS
-              Name: AWSManagedRulesCommonRuleSet
-              ExcludedRules: []
-        - Name: AWSManagedRulesWindowsRules
-          Priority: 1
-          OverrideAction:
-            Count: {}
-          VisibilityConfig:
-            SampledRequestsEnabled: true
-            CloudWatchMetricsEnabled: true
-            MetricName: AWSManagedRulesWindowsRulesMetric
-          Statement:
-            ManagedRuleGroupStatement:
-              VendorName: AWS
-              Name: AWSManagedRulesWindowsRuleSet
-              ExcludedRules: []
-        - Name: AWSManagedRulesSQLRules
-          Priority: 2
-          OverrideAction:
-            Count: {}
-          VisibilityConfig:
-            SampledRequestsEnabled: true
-            CloudWatchMetricsEnabled: true
-            MetricName: AWSManagedRulesSQLRulesMetric
-          Statement:
-            ManagedRuleGroupStatement:
-              VendorName: AWS
-              Name: AWSManagedRulesSQLiRuleSet
-              ExcludedRules: []
+      #Rules: 
+        #- Name: AWSManagedRulesCommonRules
+         # Priority: 0
+         # OverrideAction:
+         #   Count: {}
+          #VisibilityConfig:
+          #  SampledRequestsEnabled: true
+          #  CloudWatchMetricsEnabled: true
+           # MetricName: AWSManagedRulesCommonRulesMetric
+          #Statement:
+         #   ManagedRuleGroupStatement:
+          #    VendorName: AWS
+          #    Name: AWSManagedRulesCommonRuleSet
+           #   ExcludedRules: []
+        #- Name: AWSManagedRulesWindowsRules
+        #  Priority: 1
+        #  OverrideAction:
+        #    Count: {}
+        #  VisibilityConfig:
+        #    SampledRequestsEnabled: true
+        #    CloudWatchMetricsEnabled: true
+        #    MetricName: AWSManagedRulesWindowsRulesMetric
+        #  Statement:
+        #    ManagedRuleGroupStatement:
+        #      VendorName: AWS
+        #      Name: AWSManagedRulesWindowsRuleSet
+        #      ExcludedRules: []
+        #- Name: AWSManagedRulesSQLRules
+        #  Priority: 2
+        #  OverrideAction:
+        #    Count: {}
+        #  VisibilityConfig:
+        #    SampledRequestsEnabled: true
+        #    CloudWatchMetricsEnabled: true
+        #    MetricName: AWSManagedRulesSQLRulesMetric
+        #  Statement:
+        #    ManagedRuleGroupStatement:
+        #      VendorName: AWS
+        #      Name: AWSManagedRulesSQLiRuleSet
+        #      ExcludedRules: []
       Scope: "REGIONAL"
       VisibilityConfig:
         SampledRequestsEnabled: true
@@ -90,6 +86,7 @@ Resources:
     Properties: 
       ResourceArn:
         Fn::FindInMap:
+          - "LoadBalancing"
           - "ALB"
           - "AlbArn"
       WebACLArn: !GetAtt WebAcl.Arn

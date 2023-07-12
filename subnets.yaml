@@ -9,13 +9,18 @@ AWSTemplateFormatVersion: "2010-09-09"
 
 #Mappings: CIDR ranges, Availability Zones, ALB, VPC, InternetGateway
 Mappings:
-  VpcId: "vpc-c9bba0a1" #default vpc, currently used in prod
-
-  ALB:
-    AlbArn: "arn:aws:elasticloadbalancing:us-east-2:802429766603:loadbalancer/app/bluestreak-cloud-prd-aelb/e89fa1277a5fcf47" #current ALB in production
-    AlbId: "bluestreak-cloud-prd-aelb" #current ALB in production
-
-  IgwId: "igw-7396121b" #current Internet Gateway associated with default VPC
+  Networking:
+    VPC:
+      VpcId: "vpc-c9bba0a1" #default vpc, currently used in prod
+  
+  LoadBalancing:
+    ALB:
+      AlbArn: "arn:aws:elasticloadbalancing:us-east-2:802429766603:loadbalancer/app/bluestreak-cloud-prd-aelb/e89fa1277a5fcf47" #current ALB in production
+      AlbId: "bluestreak-cloud-prd-aelb" #current ALB in production
+  
+  InternetGateway:
+    IGW:
+      IgwId: "igw-7396121b" #current Internet Gateway associated with default VPC
 
   SubnetConfig:
     Public0:
@@ -40,6 +45,8 @@ Resources:
     Properties: 
       VpcId:
         Fn::FindInMap:
+          - "Networking"
+          - "VPC"
           - "VpcId"
       AvailabilityZone:
         Fn::Sub:
@@ -70,6 +77,8 @@ Resources:
     Properties: 
       VpcId:
         Fn::FindInMap:
+          - "Networking"
+          - "VPC"
           - "VpcId"
       AvailabilityZone:
         Fn::Sub:
@@ -101,6 +110,8 @@ Resources:
     Properties: 
       VpcId:
         Fn::FindInMap:
+          - "Networking"
+          - "VPC"
           - "VpcId"
       AvailabilityZone:
         Fn::Sub:
@@ -131,6 +142,8 @@ Resources:
     Properties: 
       VpcId:
         Fn::FindInMap:
+          - "Networking"
+          - "VPC"
           - "VpcId"
       AvailabilityZone:
         Fn::Sub:
@@ -164,6 +177,8 @@ Resources:
     Properties:
       VpcId:
         Fn::FindInMap:
+          - "Networking"
+          - "VPC"
           - "VpcId"
       Tags:
         -
@@ -185,6 +200,8 @@ Resources:
       DestinationCidrBlock: "0.0.0.0/0"
       GatewayId:
         Fn::FindInMap:
+          - "InternetGateway"
+          - "IGW"
           - "IgwId"
 
   #Public Route Associations
@@ -210,6 +227,8 @@ Resources:
     Properties:
       VpcId:
         Fn::FindInMap:
+          - "Networking"
+          - "VPC"
           - "VpcId"
       Tags:
         -
@@ -224,6 +243,8 @@ Resources:
     Properties:
       VpcId:
         Fn::FindInMap:
+          - "Networking"
+          - "VPC"
           - "VpcId"
       Tags:
         -
@@ -272,6 +293,8 @@ PublicNetworkAcl: # do i need this?
     Properties:
       VpcId:
         Fn::FindInMap:
+          - "Networking"
+          - "VPC"
           - "VpcId"
       Tags:
         -
@@ -335,11 +358,25 @@ PublicNetworkAcl: # do i need this?
     Type: "AWS::EC2::EIP"
     Properties:
       Domain: "vpc"
+      Tags:
+        -
+          Key: "Name"
+          Value: "natgateway-ip-0"
+        -
+          Key: "Build"
+          Value: "Created using CloudFormation"
 
   ElasticIP1:
     Type: "AWS::EC2::EIP"
     Properties:
       Domain: "vpc"
+      Tags:
+        -
+          Key: "Name"
+          Value: "natgateway-ip-1"
+        -
+          Key: "Build"
+          Value: "Created using CloudFormation"
 
   NATGateway0:
     Type: "AWS::EC2::NatGateway"
@@ -349,7 +386,14 @@ PublicNetworkAcl: # do i need this?
           - "ElasticIP0"
           - "AllocationId"
       SubnetId:
-        Ref: "PublicSubnet0" #should these be private?
+        Ref: "PublicSubnet0"
+      Tags:
+        -
+          Key: "Name"
+          Value: "natgateway-0"
+        -
+          Key: "Build"
+          Value: "Created using CloudFormation"
 
   NATGateway1:
     Type: "AWS::EC2::NatGateway"
@@ -360,3 +404,10 @@ PublicNetworkAcl: # do i need this?
           - "AllocationId"
       SubnetId:
         Ref: "PublicSubnet1"
+      Tags:
+        -
+          Key: "Name"
+          Value: "natgateway-1"
+        -
+          Key: "Build"
+          Value: "Created using CloudFormation"

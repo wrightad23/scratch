@@ -1,0 +1,92 @@
+#This template builds an AWS WAF Web ACL using AWS Managed rule groups - the common core rule group, Windows rule group, and SQL rule group
+#The mappings point the WAF to the development application load balancer
+#The Cloudformation Stack will need to be built in the us-east-2 region
+#See the URL below for helpful documentation on building out more templates for Web ACLs
+#https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-wafv2-webacl.html
+
+AWSTemplateFormatVersion: "2010-09-09"
+
+#Mappings: Availability Zones, ALB, VPC
+Mappings:
+  LoadBalancing:
+    ALB:
+      AlbArn: arn:aws:elasticloadbalancing:us-east-2:802429766603:loadbalancer/app/bluestreak-cloud-dev-aelb/c387c603af21c28e
+      AlbId: "bluestreak-cloud-dev-aelb"
+
+  AZRegions:
+    us-east-2:
+      AZs: ["a", "b"]
+
+Resources:
+  
+  #WebACL
+  WebAcl:
+    Type: AWS::WAFv2::WebACL
+    Properties: 
+      DefaultAction: 
+        Allow: {}
+      Description: "WAF routing to BlueStreak Development ALB"
+      Name: "bluestreak-dev-waf-acl-0"
+      Rules: 
+        - Name: AWSManagedRulesCommonRulesDev
+          Priority: 0
+          OverrideAction:
+            Count: {}
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: AWSManagedRulesCommonRulesMetricDev
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesCommonRuleSet
+              ExcludedRules: []
+        - Name: AWSManagedRulesWindowsRulesDev
+          Priority: 1
+          OverrideAction:
+            Count: {}
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: AWSManagedRulesWindowsRulesMetricDev
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesWindowsRuleSet
+              ExcludedRules: []
+        - Name: AWSManagedRulesSQLRulesDev
+          Priority: 2
+          OverrideAction:
+            Count: {}
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: AWSManagedRulesSQLRulesMetricDev
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesSQLiRuleSet
+              ExcludedRules: []
+      Scope: "REGIONAL"
+      VisibilityConfig:
+        SampledRequestsEnabled: true
+        CloudWatchMetricsEnabled: true
+        MetricName: BlueStreakDevWebACL
+      Tags: 
+        -
+          Key: "Name"
+          Value: "bluestreak-dev-waf-acl-0"
+        -
+          Key: "Build"
+          Value: "Created using CloudFormation"
+  
+  #Associating ACL with ALB
+  WebAclAssociation:
+    Type: AWS::WAFv2::WebACLAssociation
+    Properties: 
+      ResourceArn:
+        Fn::FindInMap:
+          - "LoadBalancing"
+          - "ALB"
+          - "AlbArn"
+      WebACLArn: !GetAtt WebAcl.Arn
