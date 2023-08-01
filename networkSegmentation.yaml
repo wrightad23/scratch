@@ -1,0 +1,398 @@
+#This template uses the current default VPC in use in production as well as the production ALB and InternetGateway - all of which are listed in the Mappings section.
+#The template will then build out subnets - 2 public, 2 private - in the VPC's CIDR 172.35.0.0/16 space. The public subnets will be used for the web app servers and the private will be used for SQL servers.
+#Built using template from AWS Labs
+#https://github.com/awslabs/aws-cloudformation-templates/blob/master/aws/services/VPC/VPC_With_Managed_NAT_And_Private_Subnet.yaml
+
+AWSTemplateFormatVersion: "2010-09-09"
+
+#Mappings: CIDR ranges, Availability Zones, ALB, VPC, InternetGateway
+Mappings:
+  Networking:
+    VPC:
+      VpcId: "vpc-c9bba0a1" #default vpc, currently used in prod
+  
+  LoadBalancing:
+    ALB:
+      AlbArn: "arn:aws:elasticloadbalancing:us-east-2:802429766603:loadbalancer/app/bluestreak-cloud-prd-aelb/e89fa1277a5fcf47" #current ALB in production
+      AlbId: "bluestreak-cloud-prd-aelb" #current ALB in production
+  
+  InternetGateway:
+    IGW:
+      IgwId: "igw-7396121b" #current Internet Gateway associated with default VPC
+
+  SubnetConfig:
+    Public0:
+      CIDR: "172.35.1.0/24"
+    Public1:
+      CIDR: "172.35.2.0/24"
+    Private0:
+      CIDR: "172.35.3.0/24"
+    Private1:
+      CIDR: "172.35.4.0/24"
+
+  AZRegions:
+    us-east-2:
+      AZs: ["a", "b"]
+
+#Resources
+Resources:
+  #Subnets
+  #IIS - Public Subnets
+  PublicSubnet0:
+    Type: AWS::EC2::Subnet
+    Properties: 
+      VpcId:
+        Fn::FindInMap:
+          - "Networking"
+          - "VPC"
+          - "VpcId"
+      AvailabilityZone: "us-east-2a"
+      CidrBlock:
+        Fn::FindInMap:
+          - "SubnetConfig"
+          - "Public0"
+          - "CIDR"
+      MapPublicIpOnLaunch: "true"
+      Tags: 
+        -
+          Key: "Network"
+          Value: "Public"
+        -
+          Key: "Application"
+          Value: "IIS"
+        -
+          Key: "Name"
+          Value: "public-subnet-0"
+        -
+          Key: "Build"
+          Value: "Created using CloudFormation"
+
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties: 
+      VpcId:
+        Fn::FindInMap:
+          - "Networking"
+          - "VPC"
+          - "VpcId"
+      AvailabilityZone: "us-east-2b"
+      CidrBlock:
+        Fn::FindInMap:
+          - "SubnetConfig"
+          - "Public1"
+          - "CIDR"      
+      MapPublicIpOnLaunch: "true"
+      Tags: 
+        -
+          Key: "Network"
+          Value: "Public"
+        -
+          Key: "Application"
+          Value: "IIS"
+        -
+          Key: "Name"
+          Value: "public-subnet-1"
+        -
+          Key: "Build"
+          Value: "Created using CloudFormation"
+
+  #SQL Subnets
+  PrivateSubnet0:
+    Type: AWS::EC2::Subnet
+    Properties: 
+      VpcId:
+        Fn::FindInMap:
+          - "Networking"
+          - "VPC"
+          - "VpcId"
+      AvailabilityZone: "us-east-2a"
+      CidrBlock:
+        Fn::FindInMap:
+          - "SubnetConfig"
+          - "Private0"
+          - "CIDR"
+      MapPublicIpOnLaunch: "false"
+      Tags: 
+        -
+          Key: "Network"
+          Value: "Private"
+        -
+          Key: "Application"
+          Value: "SQL"
+        -
+          Key: "Name"
+          Value: "private-subnet-0"
+        -
+          Key: "Build"
+          Value: "Created using CloudFormation"
+
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties: 
+      VpcId:
+        Fn::FindInMap:
+          - "Networking"
+          - "VPC"
+          - "VpcId"
+      AvailabilityZone: "us-east-2b"
+      CidrBlock:
+        Fn::FindInMap:
+          - "SubnetConfig"
+          - "Private1"
+          - "CIDR"
+      MapPublicIpOnLaunch: "false"
+      Tags: 
+        -
+          Key: "Network"
+          Value: "Private"
+        -
+          Key: "Application"
+          Value: "SQL"
+        -
+          Key: "Name"
+          Value: "private-subnet-1"
+        -
+          Key: "Build"
+          Value: "Created using CloudFormation"
+
+  #Route Tables
+  #Public Route Table
+  PublicRouteTable:
+    Type: "AWS::EC2::RouteTable"
+    Properties:
+      VpcId:
+        Fn::FindInMap:
+          - "Networking"
+          - "VPC"
+          - "VpcId"
+      Tags:
+        -
+          Key: "Network"
+          Value: "Public"
+        -
+          Key: "Name"
+          Value: "public-route-table"
+        -
+          Key: "Build"
+          Value: "Created using CloudFormation"
+
+  #Public Routes
+  PublicRoute:
+    Type: "AWS::EC2::Route"
+    Properties:
+      RouteTableId:
+        Ref: "PublicRouteTable"
+      DestinationCidrBlock: "0.0.0.0/0"
+      GatewayId:
+        Fn::FindInMap:
+          - "InternetGateway"
+          - "IGW"
+          - "IgwId"
+
+  #Public Route Associations
+  PublicSubnetRouteTableAssociation0:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      SubnetId:
+        Ref: "PublicSubnet0"
+      RouteTableId:
+        Ref: "PublicRouteTable"
+
+  PublicSubnetRouteTableAssociation1:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      SubnetId:
+        Ref: "PublicSubnet1"
+      RouteTableId:
+        Ref: "PublicRouteTable"
+
+  #Private Route Tables
+  PrivateRouteTable0:
+    Type: "AWS::EC2::RouteTable"
+    Properties:
+      VpcId:
+        Fn::FindInMap:
+          - "Networking"
+          - "VPC"
+          - "VpcId"
+      Tags:
+        -
+          Key: "Name"
+          Value: "private-route-table-0"
+        -
+          Key: "Build"
+          Value: "Created using CloudFormation"
+
+  PrivateRouteTable1:
+    Type: "AWS::EC2::RouteTable"
+    Properties:
+      VpcId:
+        Fn::FindInMap:
+          - "Networking"
+          - "VPC"
+          - "VpcId"
+      Tags:
+        -
+          Key: "Name"
+          Value: "private-route-table-1"
+        -
+          Key: "Build"
+          Value: "Created using CloudFormation"
+
+  PrivateRouteToInternet0:
+    Type: "AWS::EC2::Route"
+    Properties:
+      RouteTableId:
+        Ref: "PrivateRouteTable0"
+      DestinationCidrBlock: "0.0.0.0/0"
+      NatGatewayId:
+        Ref: "NATGateway0"
+
+  PrivateRouteToInternet1:
+    Type: "AWS::EC2::Route"
+    Properties:
+      RouteTableId:
+        Ref: "PrivateRouteTable1"
+      DestinationCidrBlock: "0.0.0.0/0"
+      NatGatewayId:
+        Ref: "NATGateway1"
+
+  PrivateSubnetRouteTableAssociation0:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      SubnetId:
+        Ref: "PrivateSubnet0"
+      RouteTableId:
+        Ref: "PrivateRouteTable0"
+
+  PrivateSubnetRouteTableAssociation1:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      SubnetId:
+        Ref: "PrivateSubnet1"
+      RouteTableId:
+        Ref: "PrivateRouteTable1"
+
+  PublicNetworkAcl:
+    Type: "AWS::EC2::NetworkAcl"
+    Properties:
+      VpcId:
+        Fn::FindInMap:
+          - "Networking"
+          - "VPC"
+          - "VpcId"
+      Tags:
+        -
+          Key: "Network"
+          Value: "Public"
+        -
+          Key: "Name"
+          Value: "public-nacl"
+        -
+          Key: "Build"
+          Value: "Created using CloudFormation"
+  
+  #ACL Entries - Inbound and Outbound
+  InboundHTTPPublicNetworkAclEntry:
+    Type: "AWS::EC2::NetworkAclEntry"
+    Properties:
+      NetworkAclId:
+        Ref: "PublicNetworkAcl"
+      RuleNumber: "100"
+      Protocol: "-1"
+      RuleAction: "allow"
+      Egress: "false"
+      CidrBlock: "0.0.0.0/0"
+      PortRange:
+        From: "0"
+        To: "65535"
+
+  OutboundPublicNetworkAclEntry:
+    Type: "AWS::EC2::NetworkAclEntry"
+    Properties:
+      NetworkAclId:
+        Ref: "PublicNetworkAcl"
+      RuleNumber: "100"
+      Protocol: "-1"
+      RuleAction: "allow"
+      Egress: "true"
+      CidrBlock: "0.0.0.0/0"
+      PortRange:
+        From: "0"
+        To: "65535"
+
+  #ACL Associations with Subnets
+  PublicSubnetNetworkAclAssociation0:
+    Type: "AWS::EC2::SubnetNetworkAclAssociation"
+    Properties:
+      SubnetId:
+        Ref: "PublicSubnet0"
+      NetworkAclId:
+        Ref: "PublicNetworkAcl"
+
+  PublicSubnetNetworkAclAssociation1:
+    Type: "AWS::EC2::SubnetNetworkAclAssociation"
+    Properties:
+      SubnetId:
+        Ref: "PublicSubnet1"
+      NetworkAclId:
+        Ref: "PublicNetworkAcl"
+
+  #NAT Gateway
+  ElasticIP0:
+    Type: "AWS::EC2::EIP"
+    Properties:
+      Domain: "vpc"
+      Tags:
+        -
+          Key: "Name"
+          Value: "natgateway-ip-0"
+        -
+          Key: "Build"
+          Value: "Created using CloudFormation"
+
+  ElasticIP1:
+    Type: "AWS::EC2::EIP"
+    Properties:
+      Domain: "vpc"
+      Tags:
+        -
+          Key: "Name"
+          Value: "natgateway-ip-1"
+        -
+          Key: "Build"
+          Value: "Created using CloudFormation"
+
+  NATGateway0:
+    Type: "AWS::EC2::NatGateway"
+    Properties:
+      AllocationId:
+        Fn::GetAtt:
+          - "ElasticIP0"
+          - "AllocationId"
+      SubnetId:
+        Ref: "PublicSubnet0"
+      Tags:
+        -
+          Key: "Name"
+          Value: "natgateway-0"
+        -
+          Key: "Build"
+          Value: "Created using CloudFormation"
+
+  NATGateway1:
+    Type: "AWS::EC2::NatGateway"
+    Properties:
+      AllocationId:
+        Fn::GetAtt:
+          - "ElasticIP1"
+          - "AllocationId"
+      SubnetId:
+        Ref: "PublicSubnet1"
+      Tags:
+        -
+          Key: "Name"
+          Value: "natgateway-1"
+        -
+          Key: "Build"
+          Value: "Created using CloudFormation"
