@@ -1,0 +1,24 @@
+name: Terraform CI
+
+on:
+  pull_request:
+    paths:
+      - '**.tf'
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Terraform Plan
+      run: terraform plan -no-color 2>&1 | tee ${{ github.workspace }}/plan_output.txt
+
+    - name: Comment Terraform Plan on PR
+      uses: blinqas/tf-plan-pr-comment@v1
+      with:
+        output_file: ${{ github.workspace }}/plan_output.txt
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
